@@ -102,18 +102,26 @@ function Format.Compile(fmt)
 	return parse(0, 1)
 end
 
+-- Secret values (Midnight/Forever addon rules) can be concatenated and shown with SetText,
+-- but not compared, measured or pattern-matched. Core replaces this with issecretvalue.
+Format.IsSecret = function() return false end
+
+-- Pieces are { s = string, secret = bool }. A secret piece always counts as non-empty,
+-- because emptiness cannot be tested on a secret.
 local function renderNodes(nodes, data, out)
 	local empty = false
 	for i = 1, #nodes do
 		local node = nodes[i]
 		if node.t == "text" then
-			out[#out + 1] = node.s
+			out[#out + 1] = { s = node.s }
 		elseif node.t == "tok" then
 			local v = data[node.k]
-			if v == nil or v == "" then
+			if Format.IsSecret(v) then
+				out[#out + 1] = { s = v, secret = true }
+			elseif v == nil or v == "" then
 				empty = true
 			else
-				out[#out + 1] = tostring(v)
+				out[#out + 1] = { s = tostring(v) }
 			end
 		elseif node.t == "seg" then
 			local sub = {}
@@ -142,13 +150,51 @@ function Format.TruncateUTF8(s, maxChars)
 end
 
 -- Render compiled nodes with a data table keyed by token letter.
--- Returns the final string ("" when everything was empty).
+-- Returns the final string ("" when everything was empty) and a flag that is true when the
+-- result contains a secret value. Secret results skip whitespace cleanup across secret pieces
+-- and truncation, since neither can be done on a secret; literal text is still tidied.
 function Format.Render(nodes, data)
 	local out = {}
 	renderNodes(nodes, data or {}, out)
-	local s = table.concat(out)
-	s = s:gsub("%s+", " "):match("^%s*(.-)%s*$")
-	return Format.TruncateUTF8(s, Format.MAX_OUTPUT_CHARS)
+
+	local hasSecret = false
+	for i = 1, #out do
+		if out[i].secret then hasSecret = true break end
+	end
+
+	if not hasSecret then
+		local parts = {}
+		for i = 1, #out do parts[i] = out[i].s end
+		local s = table.concat(parts)
+		s = s:gsub("%s+", " "):match("^%s*(.-)%s*$")
+		return Format.TruncateUTF8(s, Format.MAX_OUTPUT_CHARS), false
+	end
+
+	-- Secret-safe path: merge neighbouring literal pieces, tidy only those, and join with
+	-- the .. operator (allowed on secrets, unlike table.concat or pattern functions).
+	local merged = {}
+	for i = 1, #out do
+		local piece = out[i]
+		local prev = merged[#merged]
+		if not piece.secret and prev and not prev.secret then
+			prev.s = prev.s .. piece.s
+		else
+			merged[#merged + 1] = { s = piece.s, secret = piece.secret }
+		end
+	end
+	local s = ""
+	for i = 1, #merged do
+		local piece = merged[i]
+		if piece.secret then
+			s = s .. piece.s
+		else
+			local t = piece.s:gsub("%s+", " ")
+			if i == 1 then t = t:gsub("^ ", "") end
+			if i == #merged then t = t:gsub(" $", "") end
+			s = s .. t
+		end
+	end
+	return s, true
 end
 
 -- Convenience: compile and render in one step. Returns string or nil, err.

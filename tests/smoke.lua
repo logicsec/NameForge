@@ -69,6 +69,20 @@ local function fire(event, ...)
 end
 
 -- ---------------------------------------------------------------------------
+-- Secret value emulation: concatenation works (and stays secret); indexing, length and
+-- string library calls fail, like the real client.
+-- ---------------------------------------------------------------------------
+local SecretMT = {}
+local function Secret(v) return setmetatable({ _v = v }, SecretMT) end
+local function unwrap(x) if getmetatable(x) == SecretMT then return rawget(x, "_v") end return x end
+SecretMT.__concat = function(a, b) return Secret(unwrap(a) .. unwrap(b)) end
+SecretMT.__index = function() error("attempt to index a secret value", 2) end
+SecretMT.__len = function() error("attempt to get length of a secret value", 2) end
+SecretMT.__lt = function() error("attempt to compare a secret value", 2) end
+SecretMT.__le = SecretMT.__lt
+local function isSecretMock(v) return getmetatable(v) == SecretMT end
+
+-- ---------------------------------------------------------------------------
 -- API mocks
 -- ---------------------------------------------------------------------------
 UIParent = newWidget("Frame", "UIParent")
@@ -91,7 +105,7 @@ tinsert = table.insert
 function strtrim(s) return (s:gsub("^%s+", ""):gsub("%s+$", "")) end
 function time() return 1792500000 end
 function geterrorhandler() return function(e) error(e, 2) end end
-function issecretvalue() return false end
+function issecretvalue(v) return isSecretMock(v) end
 function GetCursorPosition() return 150, 150 end
 function GameTooltip_Hide() end
 function StaticPopup_Show() end
@@ -128,6 +142,11 @@ local UNITS = {
 	raid3 = { "Ad", "Astra", "Player-1-BBB", "Solstice", "Mage", "MAGE", "Gnome", 60 },
 	party1 = { "Orin", "Vale", "Player-1-CCC", nil, "Warrior", "WARRIOR", "Human", 42 },
 	nameplate9 = { "Hogger", nil, "Creature-0-1", nil, "Warrior", "WARRIOR", nil, 11, npc = true },
+	-- PvP: names come back secret, GUID and class stay readable
+	arena1 = { Secret("Ad"), Secret("Astra"), "Player-1-BBB", nil, "Mage", "MAGE", "Gnome", 60 },
+	arena2 = { Secret("Orin"), Secret("Vale"), "Player-1-CCC", nil, "Warrior", "WARRIOR", "Human", 42 },
+	arena3 = { Secret("Zed"), Secret("Unknown"), Secret("Player-1-ZZZ"), nil, "Rogue", "ROGUE", "Orc", 60 },
+	arena4 = { Secret("Kira"), Secret("Moon"), "Player-1-KKK", Secret("Dawnguard"), "Priest", "PRIEST", "Human", 60 },
 }
 local function u(unit) return UNITS[unit] end
 function UnitIsPlayer(unit) local d = u(unit); return d ~= nil and not d.npc end
@@ -283,11 +302,59 @@ Core:SetEnabled(false)
 check("disabled returns nil", Core:GetDisplay("target"), nil)
 Core:SetEnabled(true)
 
--- Secret values: fall back
-issecretvalue = function(v) return v == "Ad" end
+-- Secret GUID: we cannot tell who it is, so fall back to Blizzard's text
+issecretvalue = function(v) return v == "Player-1-BBB" end
 Core:Invalidate()
-check("secret falls back", Core:GetDisplay("target"), nil)
+check("secret guid falls back", Core:GetDisplay("target"), nil)
 issecretvalue = function() return false end
+
+-- PvP-safe rendering
+issecretvalue = function(v) return isSecretMock(v) end
+NameForgeDB.global.primary = "{f} {l}[ - {g}]"
+NameForgeDB.global.secondaryEnabled = true
+NameForgeDB.global.secondary = "{c}"
+NameForgeDB.global.classColor = false
+Core:Invalidate()
+d = Core:GetDisplay("arena1")
+check("pvp override by guid", d and d.primary, "Astra - Tank")
+d = Core:GetDisplay("arena2")
+check("pvp override 2 by guid", d and d.primary, "Ret - Tank")
+Core:DeleteOverrideByKey("Player-1-CCC")
+d = Core:GetDisplay("arena2")
+check("pvp global format is secret", d and isSecretMock(d.primary), true)
+check("pvp global format value", d and unwrap(d.primary), "Orin Vale")
+check("pvp secondary plain", d and d.secondary, "Warrior")
+d = Core:GetDisplay("arena4")
+check("pvp secret guild kept", d and unwrap(d.primary), "Kira Moon - Dawnguard")
+check("pvp secret guid falls back", Core:GetDisplay("arena3"), nil)
+NameForgeDB.global.primary = "  {f}   {l}  "
+Core:Invalidate()
+d = Core:GetDisplay("arena2")
+check("pvp literal spaces tidied", d and unwrap(d.primary), "Orin Vale")
+-- Surfaces accept secret text
+local pvpPlate = newWidget("Button")
+pvpPlate.unit = "nameplate1"
+pvpPlate.name = newWidget("FontString")
+pvpPlate.HealthBarsContainer = newWidget("Frame")
+pvpPlate.CastBarsContainer = newWidget("Frame")
+pvpPlate.CastBarsContainer.castBar = newWidget("StatusBar")
+pvpPlate.CastBarsContainer.castBar._shown = false
+UNITS.nameplate1 = UNITS.arena2
+CompactUnitFrame_UpdateName(pvpPlate)
+check("pvp nameplate text", unwrap(pvpPlate.name:GetText()), "Orin Vale")
+GameTooltip.GetUnit = function() return nil, "arena2", "Player-1-CCC" end
+tooltipPostCalls[1](GameTooltip)
+check("pvp tooltip has secondary", unwrap(GameTooltip.TextLeft1:GetText()), "Orin Vale\n|cffd6d0c2Warrior|r")
+-- Snapshots never store secrets
+Core:SetOverride("Player-1-KKK", { first = "Kira", last = "Moon", primary = "{f}" })
+Core:GetDisplay("arena4")
+local kseen = NameForgeDB.overrides["Player-1-KKK"].seen
+check("no secret in saved snapshot", kseen == nil or not isSecretMock(kseen.g), true)
+-- Popup refuses hidden names
+ns.OverridePopup:Open({ unit = "arena2" })
+UNITS.nameplate1 = { "Orin", "Vale", "Player-1-CCC", nil, "Warrior", "WARRIOR", "Human", 42 }
+NameForgeDB.global.primary = "{f} {l}[ - {g}]"
+Core:Invalidate()
 
 -- Build every window
 ns.Options:Open("names")

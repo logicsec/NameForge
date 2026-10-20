@@ -53,6 +53,9 @@ function NameForge.IsSecret(...)
 	return false
 end
 
+-- Let the format engine recognise secret values.
+Format.IsSecret = function(v) return NameForge.IsSecret(v) end
+
 function NameForge.Print(msg)
 	print("|cfff2c230NameForge|r: " .. tostring(msg))
 end
@@ -101,6 +104,8 @@ end
 function NameForge:FindOverride(guid, first, last)
 	local o = guid and self.db.overrides[guid]
 	if o then return o, guid end
+	-- Secret names cannot be lowered or used as keys; GUID lookup is all we can do.
+	if NameForge.IsSecret(first, last) then return nil end
 	local nk = NameForge.NameKey(first, last)
 	local key = nk and nameIndex[nk]
 	if key then
@@ -138,6 +143,8 @@ end
 
 -- Refresh an override's snapshot when we see the character with new details.
 function NameForge:UpdateSnapshot(override, data)
+	-- Never write secret values into saved variables.
+	if data and data.secret then return end
 	if override and data and snapshotDiffers(override.seen, data) then
 		override.seen = snapshotFrom(data)
 	end
@@ -216,20 +223,20 @@ function NameForge:BuildDisplay(data, override)
 	local primaryFmt, secondaryEnabled, secondaryFmt = self:ResolveSettings(override)
 	local pNodes = NameForge.GetCompiled(primaryFmt)
 	if not pNodes then return nil end
-	local primary = Format.Render(pNodes, data)
-	if primary == "" then return nil end
+	local primary, primarySecret = Format.Render(pNodes, data)
+	if not primarySecret and primary == "" then return nil end
 
-	local secondary
+	local secondary, secondarySecret
 	if secondaryEnabled then
 		local sNodes = NameForge.GetCompiled(secondaryFmt)
 		if sNodes then
-			secondary = Format.Render(sNodes, data)
-			if secondary == "" then secondary = nil end
+			secondary, secondarySecret = Format.Render(sNodes, data)
+			if not secondarySecret and secondary == "" then secondary = nil end
 		end
 	end
 
-	local result = { primary = primary, secondary = secondary }
-	if self.db.global.classColor and data.classFile then
+	local result = { primary = primary, secondary = secondary, secret = primarySecret or secondarySecret }
+	if self.db.global.classColor and data.classFile and not NameForge.IsSecret(data.classFile) then
 		local color = C_ClassColor.GetClassColor(data.classFile)
 		if color then
 			result.r, result.g, result.b = color:GetRGB()
@@ -256,13 +263,20 @@ function NameForge:GetDisplay(unit)
 	if not self.db or not self.db.enabled or not unit then return nil end
 	local data = ns.Data.FromUnit(unit)
 	if not data then return nil end
-	local hit = cache[data.guid]
-	if hit and hit.sig == data.sig then return hit.display end
+	if not data.secret then
+		local hit = cache[data.guid]
+		if hit and hit.sig == data.sig then return hit.display end
+	end
 	local override = self:FindOverride(data.guid, data.f, data.l)
 	data.n = override and override.nickname or nil
 	self:UpdateSnapshot(override, data)
-	local display = self:BuildDisplay(data, override)
-	cache[data.guid] = { sig = data.sig, display = display }
+	-- A failure here (for example an unexpected restriction on a value) falls back to
+	-- Blizzard's own text instead of throwing an error in a nameplate or tooltip hook.
+	local ok, display = pcall(self.BuildDisplay, self, data, override)
+	if not ok then display = nil end
+	if not data.secret then
+		cache[data.guid] = { sig = data.sig, display = display }
+	end
 	return display
 end
 

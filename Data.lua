@@ -21,15 +21,23 @@ function Data.SplitFullName(name)
 	return name, nil
 end
 
--- Returns a data table for a player unit, or nil when the unit is not a player
--- or any value is secret (the caller then leaves Blizzard's text alone).
+-- Returns a data table for a player unit, or nil to fall back to Blizzard's text.
+--
+-- PvP-safe: in PvP the client may return player names as secret values. Secret values can
+-- still be concatenated and displayed, so we keep them and mark data.secret. We only fall back
+-- when we cannot tell who the unit is (the GUID itself is secret or missing).
+-- Per Forever's API docs, UnitGUID, UnitClass and UnitRace are only restricted for units that
+-- are not player-controlled, so they should stay readable for players even in battlegrounds.
 function Data.FromUnit(unit)
 	if not UnitIsPlayer(unit) then return nil end
 
-	local first, last = UnitName(unit)
 	local guid = UnitGUID(unit)
-	if IsSecret(first, last, guid) or not first or not guid then return nil end
-	if not last or last == "" then
+	if not guid or IsSecret(guid) then return nil end
+
+	local first, last = UnitName(unit)
+	local nameSecret = IsSecret(first, last)
+	if not first then return nil end
+	if not nameSecret and (not last or last == "") then
 		first, last = Data.SplitFullName(first)
 	end
 
@@ -37,10 +45,11 @@ function Data.FromUnit(unit)
 	local className, classFile = UnitClass(unit)
 	local race = UnitRace(unit)
 	local level = UnitLevel(unit)
-	if IsSecret(guild, className, classFile, race, level) then return nil end
 
 	local levelText
-	if type(level) == "number" and level > 0 then
+	if IsSecret(level) then
+		levelText = level
+	elseif type(level) == "number" and level > 0 then
 		levelText = tostring(level)
 	else
 		levelText = "??"
@@ -54,10 +63,16 @@ function Data.FromUnit(unit)
 		c = className,
 		r = race,
 		v = levelText,
-		classFile = classFile,
+		classFile = (not IsSecret(classFile)) and classFile or nil,
+		nameSecret = nameSecret,
 	}
+	data.secret = nameSecret or IsSecret(guild, className, race, levelText)
+
 	-- Signature for the per-GUID cache: changes when any token value changes.
-	data.sig = table.concat({ first, last or "", guild or "", className or "", race or "", levelText }, "\031")
+	-- Secret data is never cached (it cannot be compared), so no signature is built for it.
+	if not data.secret then
+		data.sig = table.concat({ first, last or "", guild or "", className or "", race or "", levelText }, "\031")
+	end
 	return data
 end
 

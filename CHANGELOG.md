@@ -11,7 +11,7 @@ First version, written ahead of the WoW: Forever launch on November 4, 2026.
 - Only player characters are changed; NPCs, pets and creatures keep their names.
 - Options window with Names, Display, Overrides and About pages, and a live preview.
 - Minimap button, addon compartment entry, and `/nf` slash commands.
-- Secret-value checks throughout; Blizzard's text is left alone when a value is restricted.
+- PvP-safe names: when the client hides player names (secret values), overrides still match by character ID and the global format still renders by joining the hidden name with your text. Blizzard's name is used only when the character ID is hidden too.
 - Offline tests for the format engine and a mocked-API smoke test.
 - Overrides page shows each character's original name next to the name you will see ("Shows as"), on every character you log into. Formats appear on hover.
 - Overrides keep a last-seen snapshot of guild, class, race and level so results render while the character is not nearby; the snapshot refreshes whenever they are seen.

@@ -122,11 +122,27 @@ NameForge was checked against the Forever UI source (the `forever` branch of the
 - **Raid and party frames:** Blizzard's raid-style frames set their name in the same `CompactUnitFrame_UpdateName` the nameplates use, and Forever's classic party frames go through `UnitFrame_Update`. NameForge post-hooks both for `raidN`, `partyN` and `player` units and sets the primary name only (these frames are too small for two lines). `FontString:SetText` is not a protected call, so names stay correct in combat.
 - **Players only:** every surface goes through one check, `UnitIsPlayer(unit)`. Anything else is left exactly as Blizzard draws it.
 - **Inspect:** the button is added when `Blizzard_InspectUI` loads, next to `InspectFrame.CloseButton`. Right-click entries use `Menu.ModifyMenu` on the `MENU_UNIT_*` tags.
-- **Addon restrictions:** Forever uses Midnight's addon rules, including secret values. NameForge checks every value with `issecretvalue` and leaves Blizzard's text untouched whenever anything is secret. It never touches forbidden nameplates.
+- **Addon restrictions:** Forever uses Midnight's addon rules, including secret values. NameForge checks every value with `issecretvalue`. It never touches forbidden nameplates.
+
+### PvP (battlegrounds and arenas)
+
+Forever's API documentation marks `UnitName` with a rule that applies "in PvP when the queried unit is a player", which most likely means player names can come back as secret values in battlegrounds and arenas. The same documentation only restricts `UnitGUID`, `UnitClass` and `UnitRace` for units that are not player-controlled, so those should stay readable for players.
+
+NameForge keeps names working in PvP with a fallback:
+
+| Situation | What you see |
+| --- | --- |
+| Names readable (outside matches, open-world PvP) | Your names, exactly as everywhere else |
+| Names hidden, character has an override | The override, matched by character ID: nicknames and custom labels like `Ret - Tank` work normally |
+| Names hidden, no override | Your global format. The hidden name is joined with your text and displayed, but because a hidden value cannot be inspected, optional `[ ]` parts are kept whenever they contain the name, and long names are not shortened. Spaces in your own text are still tidied. |
+| Character ID hidden too | Blizzard's default name (the fallback) |
+
+Overrides cannot be created from a hidden name, so the popup explains this during a match; overrides you already have keep applying. Hidden values are never written to saved settings or the last-seen snapshot.
+
+Showing a hidden name marks that font string as holding secret text, which is how the client tracks secrets. NameForge never reads those font strings back, so this has no effect on NameForge itself.
 
 ### Known limitations
 
-- **PvP matches:** player names can be secret during PvP matches, so Blizzard's default names show there.
 - **Forbidden nameplates:** Blizzard can mark some nameplates as forbidden, which means no addon can read or change them. On retail this applies to friendly nameplates inside dungeons and raids. The Forever client has the same mechanism, but which plates it applies to is not confirmed yet (see the launch checklist). NameForge skips only plates that are actually forbidden, so if Forever does not lock friendly plates in instances, your raid members' nameplates will show your names too. Raid frames, tooltips and the target frame are not affected by this either way.
 - **Third-party nameplate and raid frame addons** (Plater, Platynator, Cell, VuhDo, Grid2 and others) draw their own names and are not changed yet.
 - **Chat sender names** are planned for v2.
@@ -146,6 +162,8 @@ The beta closed before this was tested in game. On the launch client, check:
 - [ ] **Set Display Name** appears in player right-click menus.
 - [ ] The minimap icon (`INV_Misc_Note_01`) loads, and the addon compartment entry works.
 - [ ] No Lua errors with `/console scriptErrors 1`, including in a battleground.
+- [ ] In a battleground, run `/dump issecretvalue(UnitName("target"))` and `/dump issecretvalue(UnitGUID("target"))` on a player and record the results in the PvP section above.
+- [ ] In a battleground, an override (nickname or custom label) shows on that player, and the global format shows on everyone else.
 - [ ] The TOC interface number (`16001`) matches `select(4, GetBuildInfo())`.
 
 ## Development

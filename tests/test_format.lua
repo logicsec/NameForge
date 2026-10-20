@@ -71,5 +71,26 @@ check("short string untouched", Format.TruncateUTF8("Ad Astra", 48), "Ad Astra")
 -- Empty result
 check("all empty", Format.Apply("[{g}]", orin), "")
 
+-- Secret values (PvP): concatenation only, no comparisons or pattern functions
+local SecretMT = {}
+local function Secret(v) return setmetatable({ _v = v }, SecretMT) end
+local function unwrap(x) if getmetatable(x) == SecretMT then return rawget(x, "_v") end return x end
+SecretMT.__concat = function(a, b) return Secret(unwrap(a) .. unwrap(b)) end
+SecretMT.__index = function() error("secret indexed", 2) end
+Format.IsSecret = function(v) return getmetatable(v) == SecretMT end
+
+local pvp = { f = Secret("Ad"), l = Secret("Astra"), c = "Mage" }
+local s, isSecret = Format.Render(Format.Compile("{f} {l}[ - {g}]"), pvp)
+check("secret flag", isSecret, true)
+check("secret render", unwrap(s), "Ad Astra")
+s = Format.Render(Format.Compile("  [{n} ]{f}   ({c})  "), pvp)
+check("secret tidies literal spaces", unwrap(s), "Ad (Mage)")
+s, isSecret = Format.Render(Format.Compile("Ret - Tank"), pvp)
+check("plain text stays plain in pvp", s, "Ret - Tank")
+check("plain text not secret", isSecret, false)
+s = Format.Render(Format.Compile("[{f} ]the {c}"), pvp)
+check("secret counts as non-empty in segment", unwrap(s), "Ad the Mage")
+Format.IsSecret = function() return false end
+
 print(("%d passed, %d failed"):format(passed, failed))
 os.exit(failed == 0 and 0 or 1)

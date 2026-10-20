@@ -156,6 +156,10 @@ function Popup:Open(target)
 			Core.Print("That character's name isn't available right now.")
 			return
 		end
+		if data.nameSecret then
+			Core.Print("Names are hidden during PvP matches, so overrides can't be set here. Overrides you already have still apply.")
+			return
+		end
 		state.data = data
 		state.guid, state.first, state.last = data.guid, data.f, data.l
 	else
