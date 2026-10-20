@@ -76,7 +76,24 @@ Open the override popup from:
 - **Set Display Name** in a player's right-click menu,
 - `/nf target` with a player targeted.
 
-Overrides are listed, edited and deleted on the **Overrides** page of the options window. They are stored by character GUID, with the full name kept alongside so an override set from a chat or roster menu (where only the name is known) attaches to the character the first time you see them.
+### Account-wide
+
+All settings and overrides are saved account-wide. Every override applies no matter which of your characters you log into, and the **Overrides** page shows the same list on all of them.
+
+### The Overrides page
+
+Each row shows:
+
+| Column | Shows |
+| --- | --- |
+| **Character** | The character's original first and last name (class colored), with their last-seen level, race, class and guild |
+| **Shows as** | The name you will actually see for them, primary and secondary, rendered with your current settings |
+
+Hover a row to see the formats behind it (nickname, primary, secondary). **Edit** opens the override popup, and **Delete** removes the override.
+
+So that **Shows as** works for characters who are not nearby (or after you switch characters), NameForge keeps a small snapshot of each overridden character's guild, class, race and level. The snapshot is refreshed whenever you see that character again, so a guild change shows up the next time they are on your screen.
+
+Overrides are stored by character GUID, with the full name kept alongside so an override set from a chat or roster menu (where only the name is known) attaches to the character the first time you see them.
 
 ## Slash commands
 

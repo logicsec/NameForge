@@ -117,12 +117,48 @@ function NameForge:FindOverride(guid, first, last)
 	return nil
 end
 
--- fields: first, last, nickname, primary, secondary, secondaryEnabled (nil = global)
+-- Snapshot of the token values last seen for a character, so the Overrides page
+-- can show the resulting name on any of your characters, even when they are not nearby.
+local SNAPSHOT_KEYS = { "g", "c", "r", "v", "classFile" }
+
+local function snapshotFrom(data)
+	if not data then return nil end
+	local s = {}
+	for _, k in ipairs(SNAPSHOT_KEYS) do s[k] = data[k] end
+	return s
+end
+
+local function snapshotDiffers(a, b)
+	if not a or not b then return true end
+	for _, k in ipairs(SNAPSHOT_KEYS) do
+		if a[k] ~= b[k] then return true end
+	end
+	return false
+end
+
+-- Refresh an override's snapshot when we see the character with new details.
+function NameForge:UpdateSnapshot(override, data)
+	if override and data and snapshotDiffers(override.seen, data) then
+		override.seen = snapshotFrom(data)
+	end
+end
+
+-- Token data for an override without a live unit: names plus the last-seen snapshot.
+function NameForge.OverrideData(o)
+	local data = { f = o.first, l = o.last, n = o.nickname }
+	if o.seen then
+		for _, k in ipairs(SNAPSHOT_KEYS) do data[k] = o.seen[k] end
+	end
+	return data
+end
+
+-- fields: first, last, nickname, primary, secondary, secondaryEnabled (nil = global),
+-- data (optional live token data used for the snapshot)
 function NameForge:SetOverride(guid, fields)
 	local nk = NameForge.NameKey(fields.first, fields.last)
 	local key = guid or (nk and ("N:" .. nk))
 	if not key then return false end
-	local _, existingKey = self:FindOverride(guid, fields.first, fields.last)
+	local previous, existingKey = self:FindOverride(guid, fields.first, fields.last)
 	if existingKey and existingKey ~= key then
 		self.db.overrides[existingKey] = nil
 	end
@@ -133,6 +169,7 @@ function NameForge:SetOverride(guid, fields)
 		primary = (fields.primary ~= "" and fields.primary) or nil,
 		secondary = (fields.secondary ~= "" and fields.secondary) or nil,
 		secondaryEnabled = fields.secondaryEnabled,
+		seen = snapshotFrom(fields.data) or (previous and previous.seen),
 		updated = time(),
 	}
 	self.db.overrides[key] = o
@@ -223,6 +260,7 @@ function NameForge:GetDisplay(unit)
 	if hit and hit.sig == data.sig then return hit.display end
 	local override = self:FindOverride(data.guid, data.f, data.l)
 	data.n = override and override.nickname or nil
+	self:UpdateSnapshot(override, data)
 	local display = self:BuildDisplay(data, override)
 	cache[data.guid] = { sig = data.sig, display = display }
 	return display

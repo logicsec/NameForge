@@ -189,19 +189,35 @@ end
 -- Overrides page
 -- ---------------------------------------------------------------------------
 
-local function describeOverride(o)
-	local parts = {}
-	if o.nickname then parts[#parts + 1] = "Nickname: " .. o.nickname end
-	parts[#parts + 1] = "Primary: " .. (o.primary or "global")
+local function describeFormats(o)
 	local sec
 	if o.secondaryEnabled == false then
 		sec = "off"
 	else
-		sec = o.secondary or "global"
-		if o.secondaryEnabled == true then sec = sec .. " (on)" end
+		sec = o.secondary or ("global (" .. Core.db.global.secondary .. ")")
+		if o.secondaryEnabled == true then sec = sec .. ", forced on" end
 	end
-	parts[#parts + 1] = "Secondary: " .. sec
-	return table.concat(parts, "   ")
+	return o.primary or ("global (" .. Core.db.global.primary .. ")"), sec
+end
+
+-- "Level 60 Gnome Mage <Solstice>" from an override's last-seen snapshot.
+local function describeSeen(o)
+	local s = o.seen
+	if not s then return "Not seen yet" end
+	local parts = {}
+	if s.v then parts[#parts + 1] = "Level " .. s.v end
+	if s.r then parts[#parts + 1] = s.r end
+	if s.c then parts[#parts + 1] = s.c end
+	local text = table.concat(parts, " ")
+	if s.g then text = text .. " <" .. s.g .. ">" end
+	return text
+end
+
+local function classColorOf(o)
+	local classFile = o.seen and o.seen.classFile
+	local color = classFile and C_ClassColor.GetClassColor(classFile)
+	if color then return color:GetRGB() end
+	return C.text[1], C.text[2], C.text[3]
 end
 
 local function buildOverridesPage(parent)
@@ -220,10 +236,28 @@ local function buildOverridesPage(parent)
 	local hint = page:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
 	hint:SetPoint("BOTTOMLEFT", 12, 8)
 	Theme.TextColor(hint, C.muted)
-	hint:SetText("Add an override from the Inspect window, the unit right-click menu, or /nf target.")
+	hint:SetText("Account-wide: these apply on every character you log into. Hover a row to see its formats.")
+
+	-- Column layout (relative to each row)
+	local NAME_W = 210
+	local SHOWS_X = NAME_W + 16
+
+	local header = CreateFrame("Frame", nil, box)
+	header:SetPoint("TOPLEFT", 16, -8)
+	header:SetPoint("TOPRIGHT", -36, -8)
+	header:SetHeight(18)
+	local hName = header:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+	hName:SetPoint("LEFT", 0, 0)
+	hName:SetText("Character")
+	local hShows = header:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+	hShows:SetPoint("LEFT", SHOWS_X, 0)
+	hShows:SetText("Shows as")
+	local hSep = Theme.Separator(box)
+	hSep:SetPoint("TOPLEFT", 8, -30)
+	hSep:SetPoint("TOPRIGHT", -8, -30)
 
 	local scroll = CreateFrame("ScrollFrame", nil, box, "UIPanelScrollFrameTemplate")
-	scroll:SetPoint("TOPLEFT", 8, -6)
+	scroll:SetPoint("TOPLEFT", 8, -32)
 	scroll:SetPoint("BOTTOMRIGHT", -28, 6)
 	local child = CreateFrame("Frame", nil, scroll)
 	child:SetSize(CONTENT_INNER_W - 40, 10)
@@ -244,18 +278,53 @@ local function buildOverridesPage(parent)
 		row:SetHeight(ROW_H)
 		row:SetPoint("TOPLEFT", 8, -(i - 1) * ROW_H)
 		row:SetPoint("TOPRIGHT", -8, -(i - 1) * ROW_H)
+		row:EnableMouse(true)
+
+		-- Original name and last-seen details
 		row.name = row:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
 		row.name:SetPoint("TOPLEFT", 0, -10)
-		row.detail = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-		row.detail:SetPoint("TOPLEFT", row.name, "BOTTOMLEFT", 0, -4)
-		Theme.TextColor(row.detail, C.muted)
+		row.name:SetWidth(NAME_W)
+		row.name:SetJustifyH("LEFT")
+		row.name:SetWordWrap(false)
+		row.seen = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+		row.seen:SetPoint("TOPLEFT", row.name, "BOTTOMLEFT", 0, -4)
+		row.seen:SetWidth(NAME_W)
+		row.seen:SetJustifyH("LEFT")
+		row.seen:SetWordWrap(false)
+		Theme.TextColor(row.seen, C.muted)
+
 		row.delete = W.Button(row, "Delete", 70, 28, nil, "danger")
 		row.delete:SetPoint("RIGHT", 0, 0)
 		row.edit = W.Button(row, "Edit", 60, 28)
 		row.edit:SetPoint("RIGHT", row.delete, "LEFT", -8, 0)
-		row.detail:SetPoint("RIGHT", row.edit, "LEFT", -12, 0)
-		row.detail:SetJustifyH("LEFT")
-		row.detail:SetWordWrap(false)
+
+		-- The name you will see
+		row.shows = row:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+		row.shows:SetPoint("TOPLEFT", SHOWS_X, -10)
+		row.shows:SetPoint("RIGHT", row.edit, "LEFT", -12, 0)
+		row.shows:SetJustifyH("LEFT")
+		row.shows:SetWordWrap(false)
+		row.showsSecondary = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+		row.showsSecondary:SetPoint("TOPLEFT", row.shows, "BOTTOMLEFT", 0, -4)
+		row.showsSecondary:SetPoint("RIGHT", row.edit, "LEFT", -12, 0)
+		row.showsSecondary:SetJustifyH("LEFT")
+		row.showsSecondary:SetWordWrap(false)
+		row.showsSecondary:SetTextColor(0.84, 0.82, 0.76)
+
+		-- Hover shows the formats behind the result
+		row:SetScript("OnEnter", function(self)
+			local o = self.override
+			if not o then return end
+			local primary, secondary = describeFormats(o)
+			GameTooltip:SetOwner(self, "ANCHOR_TOPLEFT")
+			GameTooltip:SetText(self.name:GetText(), C.gold[1], C.gold[2], C.gold[3])
+			if o.nickname then GameTooltip:AddDoubleLine("Nickname", o.nickname, 0.64, 0.61, 0.56, 1, 1, 1) end
+			GameTooltip:AddDoubleLine("Primary", primary, 0.64, 0.61, 0.56, 1, 1, 1)
+			GameTooltip:AddDoubleLine("Secondary", secondary, 0.64, 0.61, 0.56, 1, 1, 1)
+			GameTooltip:Show()
+		end)
+		row:SetScript("OnLeave", GameTooltip_Hide)
+
 		if i > 1 then
 			local sep = Theme.Separator(row)
 			sep:SetPoint("TOPLEFT")
@@ -274,8 +343,20 @@ local function buildOverridesPage(parent)
 		for i, item in ipairs(list) do
 			local row = getRow(i)
 			local o = item.o
+			row.override = o
 			row.name:SetText(o.last and (o.first .. " " .. o.last) or (o.first or "?"))
-			row.detail:SetText(describeOverride(o))
+			row.name:SetTextColor(classColorOf(o))
+			row.seen:SetText(describeSeen(o))
+
+			local display = Core:BuildDisplay(Core.OverrideData(o), o)
+			row.shows:SetText(display and display.primary or row.name:GetText())
+			if display and display.r then
+				row.shows:SetTextColor(display.r, display.g, display.b)
+			else
+				row.shows:SetTextColor(C.text[1], C.text[2], C.text[3])
+			end
+			row.showsSecondary:SetText(display and display.secondary or "")
+
 			row.edit:SetScript("OnClick", function()
 				ns.OverridePopup:Open({ guid = item.key:sub(1, 2) ~= "N:" and item.key or nil, first = o.first, last = o.last })
 			end)

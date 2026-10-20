@@ -216,6 +216,20 @@ check("name-keyed override", d and d.primary, "Ret - Tank")
 check("upgraded to guid", NameForgeDB.overrides["Player-1-CCC"] ~= nil, true)
 check("name key removed", NameForgeDB.overrides["N:orin vale"], nil)
 
+-- Snapshot: an override without live data picks up guild/class once the unit is seen,
+-- so the Overrides page can render the result while the character is not around.
+Core:DeleteOverrideByKey("Player-1-BBB")
+Core:SetOverride("Player-1-BBB", { first = "Ad", last = "Astra", nickname = "Astra", primary = "{n} - {g}" })
+local ov = NameForgeDB.overrides["Player-1-BBB"]
+check("no snapshot before seen", ov.seen, nil)
+Core:GetDisplay("target")
+check("snapshot guild", ov.seen and ov.seen.g, "Solstice")
+local offline = Core:BuildDisplay(Core.OverrideData(ov), ov)
+check("offline render uses snapshot", offline and offline.primary, "Astra - Solstice")
+Core:SetOverride("Player-1-BBB", { first = "Ad", last = "Astra", nickname = "Astra", primary = "{n} - Tank", secondaryEnabled = false })
+check("snapshot kept on edit", NameForgeDB.overrides["Player-1-BBB"].seen ~= nil, true)
+Core:Invalidate()
+
 -- Tooltip
 tooltipPostCalls[1](GameTooltip)
 GameTooltip.GetUnit = function() return "Ad", "target", "Player-1-BBB" end

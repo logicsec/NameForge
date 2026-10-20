@@ -12,3 +12,5 @@ First version, written ahead of the WoW: Forever launch on November 4, 2026.
 - Minimap button, addon compartment entry, and `/nf` slash commands.
 - Secret-value checks throughout; Blizzard's text is left alone when a value is restricted.
 - Offline tests for the format engine and a mocked-API smoke test.
+- Overrides page shows each character's original name next to the name you will see ("Shows as"), on every character you log into. Formats appear on hover.
+- Overrides keep a last-seen snapshot of guild, class, race and level so results render while the character is not nearby; the snapshot refreshes whenever they are seen.

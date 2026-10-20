@@ -57,7 +57,9 @@ end
 local function refreshPreview()
 	formatsValid()
 	local data = {}
-	for k, v in pairs(state.data or { f = state.first, l = state.last }) do data[k] = v end
+	local saved = Core:FindOverride(state.guid, state.first, state.last)
+	local base = state.data or (saved and Core.OverrideData(saved)) or { f = state.first, l = state.last }
+	for k, v in pairs(base) do data[k] = v end
 	local o = currentOverride()
 	data.n = (o.nickname ~= "" and o.nickname) or nil
 	local display = Core:BuildDisplay(data, o)
@@ -170,8 +172,8 @@ function Popup:Open(target)
 	state.secondaryMode = valueToMode(o.secondaryEnabled)
 
 	local full = state.last and (state.first .. " " .. state.last) or state.first
-	local d = state.data
-	if d then
+	local d = state.data or (o.seen and Core.OverrideData(o))
+	if d and d.v then
 		local guild = d.g and (" <" .. d.g .. ">") or ""
 		frame.subtitle:SetText(("%s%s, Level %s %s %s"):format(full, guild, d.v, d.r or "", d.c or ""))
 	else
@@ -187,6 +189,7 @@ function Popup:Save()
 	if not formatsValid() then return end
 	local o = currentOverride()
 	o.first, o.last = state.first, state.last
+	o.data = state.data
 	Core:SetOverride(state.guid, o)
 	frame:Hide()
 	if ns.Options then ns.Options:RefreshOverrides() end
