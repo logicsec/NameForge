@@ -1,0 +1,153 @@
+# NameForge
+
+NameForge lets you choose how other characters' names appear to you in **World of Warcraft: Forever**.
+
+Forever gives every character a first name and a last name. The built-in option only switches between the full name and the first name. NameForge replaces that with a format string you control, plus an optional second line, plus per-character overrides with your own nicknames and notes.
+
+```
+Primary:    {f} {l}[ - {g}]          ->  Ad Astra - Solstice
+Secondary:  {c}                      ->  Mage
+Override:   {n} - Tank   (n = Ret)   ->  Ret - Tank
+```
+
+Everything you set is personal and account-wide. Nobody else sees your names.
+
+## Features
+
+- **Global format** for every player character, set from the minimap button.
+- **Secondary name** line under the primary name, with its own format.
+- **Per-character overrides** from the Inspect window, the right-click menu, or `/nf target`. Give someone a nickname, a note, or a completely custom label.
+- **Class colors** for the primary name (optional).
+- **Live preview** while you type, and validation that blocks broken formats.
+- **Surfaces in v1:** Blizzard nameplates, the unit tooltip, and the target and focus frames.
+- Minimap button and addon compartment entry. No external libraries.
+
+## Install
+
+1. Download or clone this repository.
+2. Put the folder in the `Interface/AddOns/` folder inside your WoW: Forever game folder, and make sure it is named `NameForge` (it must contain `NameForge.toc` directly).
+3. Restart the game or `/reload`, and enable NameForge on the character select screen.
+
+## Format strings
+
+A format string is any text you like, with tokens that get replaced by the character's details.
+
+| Token | Value | Empty when |
+| --- | --- | --- |
+| `{f}` | First name | never |
+| `{l}` | Last name | the client does not supply one |
+| `{g}` | Guild name | no guild |
+| `{c}` | Class (localized) | never |
+| `{r}` | Race (localized) | never |
+| `{v}` | Level | never (shows `??` when hidden) |
+| `{n}` | Nickname from an override | no nickname set |
+
+Rules:
+
+- **Custom text is allowed anywhere.** `Test {f}` shows `Test Ad`. A string with no tokens at all, such as `Ret - Tank`, is shown exactly as written.
+- **Optional parts** go in square brackets. The part is dropped when any token inside it is empty, so `{f} {l}[ - {g}]` shows `Orin Vale` for a guildless player instead of `Orin Vale -`. Brackets can be nested.
+- **Reserved characters:** `{ } [ ]` have special meaning. To show one literally, type it twice: `[[` shows `[`, `]]` shows `]`, `{{` shows `{`, `}}` shows `}`.
+- Tokens are not case sensitive (`{F}` works). An unknown token such as `{x}` is left visible so typos are easy to spot.
+- Extra spaces are collapsed, formats are limited to 64 characters, and names are cut at 48 characters with `...`.
+
+### Examples
+
+| Format | Result |
+| --- | --- |
+| `{f} {l}` | Ad Astra |
+| `{f}` | Ad |
+| `{f} {l}[ <{g}>]` | Ad Astra <Solstice> |
+| `{l}, {f}` | Astra, Ad |
+| `[{n} ]({f})` | Astra (Ad) with a nickname, (Ad) without |
+| `{f} [{v} ]{r} {c}` | Ad 60 Gnome Mage |
+| `Ret - Tank` | Ret - Tank |
+
+## Overrides
+
+An override changes how one specific character appears, on top of the global format. Any field left blank uses the global setting.
+
+- **Nickname** is available as `{n}` in any format.
+- **Primary format** and **secondary format** replace the global ones for that character.
+- **Secondary name** can follow the global setting, or be forced on or off.
+
+Open the override popup from:
+
+- the NameForge button in the Inspect window's title bar,
+- **Set Display Name** in a player's right-click menu,
+- `/nf target` with a player targeted.
+
+Overrides are listed, edited and deleted on the **Overrides** page of the options window. They are stored by character GUID, with the full name kept alongside so an override set from a chat or roster menu (where only the name is known) attaches to the character the first time you see them.
+
+## Slash commands
+
+| Command | Action |
+| --- | --- |
+| `/nf` or `/nameforge` | Open or close the options window |
+| `/nf on`, `/nf off` | Turn custom names on or off |
+| `/nf primary <format>` | Set the global primary format |
+| `/nf secondary <format>` | Set the global secondary format and turn it on |
+| `/nf secondary off` | Turn the secondary name off |
+| `/nf target` | Set an override for your current target |
+| `/nf minimap` | Show or hide the minimap button |
+| `/nf reset` | Reset global settings (overrides are kept) |
+
+Minimap button: left-click opens the options window, right-click turns NameForge on or off, and dragging moves it around the minimap.
+
+## How it works
+
+NameForge was checked against the Forever UI source (the `forever` branch of the community mirror of Blizzard's interface code, build 1.60.1.70450) rather than against retail or classic documentation.
+
+- **Names:** on Forever, `UnitName(unit)` returns the first name and the surname as its two values, and the separator is a space (Blizzard's own `NameUtil` in `Blizzard_FrameXMLUtil/Camelot`). Some menus pass the full name as one string, which NameForge splits.
+- **Nameplates:** post-hooks `CompactUnitFrame_UpdateName`, so Blizzard sets the name first and NameForge replaces the text after. The secondary line is NameForge's own font string, kept in NameForge's own table rather than written onto Blizzard's frame. It sits under the health bar (or under the name when only the name is shown) and hides while a cast bar is visible.
+- **Tooltip:** `TooltipDataProcessor.AddTooltipPostCall(Enum.TooltipDataType.Unit, ...)` replaces line 1 and adds the secondary name directly under it.
+- **Target and focus:** post-hooks `UnitFrame_Update` for `TargetFrame` and `FocusFrame` only.
+- **Inspect:** the button is added when `Blizzard_InspectUI` loads, next to `InspectFrame.CloseButton`. Right-click entries use `Menu.ModifyMenu` on the `MENU_UNIT_*` tags.
+- **Addon restrictions:** Forever uses Midnight's addon rules, including secret values. NameForge checks every value with `issecretvalue` and leaves Blizzard's text untouched whenever anything is secret. It never touches forbidden nameplates.
+
+### Known limitations
+
+- **PvP matches:** player names can be secret during PvP matches, so Blizzard's default names show there.
+- **Friendly nameplates in dungeons and raids** are forbidden to addons, so they keep Blizzard's names.
+- **Third-party nameplate addons** (Plater, Platynator and others) draw their own names and are not changed yet.
+- **Chat sender names** are planned for v2.
+
+## Launch day checklist
+
+The beta closed before this was tested in game. On the launch client, check:
+
+- [ ] `/dump UnitName("target")` on a player returns first name and surname as two values.
+- [ ] Nameplates show the primary name, and the secondary line sits cleanly under the health bar.
+- [ ] Tooltip line 1 shows the primary name, with the secondary under it.
+- [ ] Target and focus frames show the primary name.
+- [ ] The Inspect window button appears next to the close button and opens the popup.
+- [ ] **Set Display Name** appears in player right-click menus.
+- [ ] The minimap icon (`INV_Misc_Note_01`) loads, and the addon compartment entry works.
+- [ ] No Lua errors with `/console scriptErrors 1`, including in a battleground.
+- [ ] The TOC interface number (`16001`) matches `select(4, GetBuildInfo())`.
+
+## Development
+
+```
+lua5.1 tests/test_format.lua   # format engine unit tests
+lua5.1 tests/smoke.lua         # loads the whole addon against a mocked WoW API
+```
+
+| Path | Purpose |
+| --- | --- |
+| `NameForge.toc` | Addon manifest and load order |
+| `Format.lua` | Format string parser and renderer (no WoW dependencies) |
+| `Core.lua` | Saved settings, overrides, cache and refresh |
+| `Data.lua` | Reads token values for a unit, with secret checks |
+| `Surfaces/` | Nameplates, tooltip, target and focus frames |
+| `UI/` | Theme, widgets, options window, override popup, Inspect button and menus, minimap button |
+| `Slash.lua` | `/nf` commands |
+| `tests/` | Offline tests, not shipped |
+
+Saved data lives in the account-wide `NameForgeDB` SavedVariable.
+
+## Roadmap
+
+- Chat sender names
+- Party and raid frames
+- An API for nameplate addons: `NameForge:GetDisplay(unit)` already returns `{ primary, secondary }`
+- Import and export of overrides

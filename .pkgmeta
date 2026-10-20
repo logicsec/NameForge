@@ -1,0 +1,6 @@
+package-as: NameForge
+
+ignore:
+  - tests
+  - README.md
+  - CHANGELOG.md
