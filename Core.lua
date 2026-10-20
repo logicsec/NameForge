@@ -20,7 +20,7 @@ local DEFAULTS = {
 		secondaryEnabled = false,
 		secondary = "{c}",
 		classColor = false,
-		surfaces = { nameplate = true, tooltip = true, target = true },
+		surfaces = { nameplate = true, tooltip = true, target = true, group = true },
 	},
 	overrides = {},
 }

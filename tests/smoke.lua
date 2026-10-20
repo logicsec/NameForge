@@ -106,7 +106,10 @@ C_ClassColor = { GetClassColor = function(classFile)
 end }
 
 local hooks = {}
-function hooksecurefunc(name, fn) hooks[name] = fn end
+function hooksecurefunc(name, fn)
+	local prev = hooks[name]
+	hooks[name] = prev and function(...) prev(...); fn(...) end or fn
+end
 
 local tooltipPostCalls = {}
 TooltipDataProcessor = { AddTooltipPostCall = function(t, fn) tooltipPostCalls[#tooltipPostCalls + 1] = fn end }
@@ -122,9 +125,12 @@ local UNITS = {
 	target = { "Ad", "Astra", "Player-1-BBB", "Solstice", "Mage", "MAGE", "Gnome", 60 },
 	nameplate1 = { "Orin", "Vale", "Player-1-CCC", nil, "Warrior", "WARRIOR", "Human", 42 },
 	nameplate2 = { "Sela Thornwick", nil, "Player-1-DDD", nil, "Rogue", "ROGUE", "Night Elf", -1 },
+	raid3 = { "Ad", "Astra", "Player-1-BBB", "Solstice", "Mage", "MAGE", "Gnome", 60 },
+	party1 = { "Orin", "Vale", "Player-1-CCC", nil, "Warrior", "WARRIOR", "Human", 42 },
+	nameplate9 = { "Hogger", nil, "Creature-0-1", nil, "Warrior", "WARRIOR", nil, 11, npc = true },
 }
 local function u(unit) return UNITS[unit] end
-function UnitIsPlayer(unit) return u(unit) ~= nil end
+function UnitIsPlayer(unit) local d = u(unit); return d ~= nil and not d.npc end
 function UnitExists(unit) return u(unit) ~= nil end
 function UnitName(unit) local d = u(unit); if d then return d[1], d[2] end end
 function UnitGUID(unit) local d = u(unit); return d and d[3] end
@@ -239,6 +245,32 @@ check("tooltip line 1", GameTooltip.TextLeft1:GetText(), "Astra - Tank")
 -- Target frame
 hooks.UnitFrame_Update(TargetFrame)
 check("target frame", TargetFrame.name:GetText(), "Astra - Tank")
+
+-- Raid-style frame (CompactUnitFrame) and classic party frame
+local raidFrame = newWidget("Button")
+raidFrame.unit = "raid3"
+raidFrame.name = newWidget("FontString")
+CompactUnitFrame_UpdateName(raidFrame)
+check("raid frame name", raidFrame.name:GetText(), "Astra - Tank")
+local partyFrame = newWidget("Button")
+partyFrame.unit = "party1"
+partyFrame.name = newWidget("FontString")
+hooks.UnitFrame_Update(partyFrame)
+check("party frame name", partyFrame.name:GetText(), "Ret - Tank")
+NameForgeDB.global.surfaces.group = false
+raidFrame.name:SetText("Blizzard")
+CompactUnitFrame_UpdateName(raidFrame)
+check("group surface off", raidFrame.name:GetText(), "Blizzard")
+NameForgeDB.global.surfaces.group = true
+
+-- NPCs are never changed
+local npcPlate = newWidget("Button")
+npcPlate.unit = "nameplate9"
+npcPlate.name = newWidget("FontString")
+npcPlate.name:SetText("Hogger")
+CompactUnitFrame_UpdateName(npcPlate)
+check("npc untouched", npcPlate.name:GetText(), "Hogger")
+check("npc no display", Core:GetDisplay("nameplate9"), nil)
 
 -- Class color
 NameForgeDB.global.classColor = true

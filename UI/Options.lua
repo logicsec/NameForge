@@ -156,6 +156,7 @@ local SURFACES = {
 	{ key = "nameplate", label = "Nameplates", desc = "Primary and secondary name on Blizzard nameplates" },
 	{ key = "tooltip", label = "Unit tooltip", desc = "Replaces the first line and adds the secondary name under it" },
 	{ key = "target", label = "Target and focus frames", desc = "Primary name only" },
+	{ key = "group", label = "Raid and party frames", desc = "Blizzard raid-style and party frames, primary name only" },
 }
 
 local function buildDisplayPage(parent)
