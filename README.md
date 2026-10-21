@@ -149,7 +149,7 @@ Showing a hidden name marks that font string as holding secret text, which is ho
 
 ## Launch day checklist
 
-The beta closed before this was tested in game. On the launch client, check:
+This was tested on the Beta Client. On the prod launch client, check:
 
 - [ ] `/dump UnitName("target")` on a player returns first name and surname as two values.
 - [ ] Nameplates show the primary name, and the secondary line sits cleanly under the health bar.
