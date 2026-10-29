@@ -25,7 +25,13 @@ Everything you set is personal and account-wide. Nobody else sees your names.
 
 ## Install
 
-1. Download or clone this repository.
+### CurseForge
+
+Install NameForge from CurseForge with the CurseForge app, or download the zip from the project's Files tab and unzip it into your WoW: Forever `Interface/AddOns/` folder. Files are tagged for WoW: Forever (CurseForge game version 1.60.1).
+
+### Manual
+
+1. Download or clone this repository, or grab the zip from the GitHub Releases page.
 2. Put the folder in the `Interface/AddOns/` folder inside your WoW: Forever game folder, and make sure it is named `NameForge` (it must contain `NameForge.toc` directly).
 3. Restart the game or `/reload`, and enable NameForge on the character select screen.
 
@@ -183,8 +189,23 @@ lua5.1 tests/smoke.lua         # loads the whole addon against a mocked WoW API
 | `UI/` | Theme, widgets, options window, override popup, Inspect button and menus, minimap button |
 | `Slash.lua` | `/nf` commands |
 | `tests/` | Offline tests, not shipped |
+| `.pkgmeta` | Packager settings: zip folder name and files left out of the release |
+| `.github/workflows/release.yml` | Tag-triggered release to CurseForge and GitHub |
 
 Saved data lives in the account-wide `NameForgeDB` SavedVariable.
+
+### Releasing
+
+Releases are built and uploaded by `.github/workflows/release.yml`, which runs the BigWigs packager whenever a tag starting with `v` is pushed:
+
+```
+git tag v0.1.0
+git push origin v0.1.0
+```
+
+The packager reads `.pkgmeta` (dev files such as `tests/`, `README.md` and `CHANGELOG.md` stay out of the zip), reads `## Interface: 16001` from the TOC to tag the file for WoW: Forever, and uploads to the CurseForge project named by `## X-Curse-Project-ID` in the TOC. It also attaches the zip to a GitHub release.
+
+The workflow needs a repository secret named `CF_API_KEY` holding a CurseForge API token (CurseForge, Account, API Tokens). After each release, check that the CurseForge file lists game version 1.60.1.
 
 ## Roadmap
 

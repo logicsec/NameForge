@@ -1,0 +1,35 @@
+# Place at .github/workflows/release.yml in the NameForge repo.
+# Pushing a tag like v0.1.0 builds the addon zip and uploads it to CurseForge
+# and as a GitHub release. The packager reads "## Interface: 16001" from
+# NameForge.toc and tags the file for WoW: Forever (CurseForge game version 1.60.1).
+#
+# Requires repo secret CF_API_KEY (CurseForge API token) and
+# "## X-Curse-Project-ID: <id>" in NameForge.toc.
+
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Package and upload
+        uses: BigWigsMods/packager@v2
+        env:
+          # Older and newer packager variable names, so either version works
+          CF_API_KEY: ${{ secrets.CF_API_KEY }}
+          CF_API_TOKEN: ${{ secrets.CF_API_KEY }}
+          GITHUB_OAUTH: ${{ secrets.GITHUB_TOKEN }}
+          GH_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
