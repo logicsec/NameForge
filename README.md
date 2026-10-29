@@ -27,7 +27,7 @@ Everything you set is personal and account-wide. Nobody else sees your names.
 
 ### CurseForge
 
-Install NameForge from CurseForge with the CurseForge app, or download the zip from the project's Files tab and unzip it into your WoW: Forever `Interface/AddOns/` folder. Files are tagged for WoW: Forever (CurseForge game version 1.60.1).
+Install NameForge from [CurseForge](https://www.curseforge.com/wow/addons/nameforge) (project ID 1772450) with the CurseForge app, or download the zip from the project's Files tab and unzip it into your WoW: Forever `Interface/AddOns/` folder. Files are tagged for WoW: Forever (CurseForge game version 1.60.1).
 
 ### Manual
 
@@ -189,6 +189,7 @@ lua5.1 tests/smoke.lua         # loads the whole addon against a mocked WoW API
 | `UI/` | Theme, widgets, options window, override popup, Inspect button and menus, minimap button |
 | `Slash.lua` | `/nf` commands |
 | `tests/` | Offline tests, not shipped |
+| `media/` | Project logo and the script that renders it, not shipped |
 | `.pkgmeta` | Packager settings: zip folder name and files left out of the release |
 | `.github/workflows/release.yml` | Tag-triggered release to CurseForge and GitHub |
 
@@ -203,7 +204,7 @@ git tag v0.1.0
 git push origin v0.1.0
 ```
 
-The packager reads `.pkgmeta` (dev files such as `tests/`, `README.md` and `CHANGELOG.md` stay out of the zip), reads `## Interface: 16001` from the TOC to tag the file for WoW: Forever, and uploads to the CurseForge project named by `## X-Curse-Project-ID` in the TOC. It also attaches the zip to a GitHub release.
+The packager reads `.pkgmeta` (dev files such as `tests/`, `README.md` and `CHANGELOG.md` stay out of the zip), reads `## Interface: 16001` from the TOC to tag the file for WoW: Forever, and uploads to the CurseForge project named by `## X-Curse-Project-ID: 1772450` in the TOC. It also attaches the zip to a GitHub release.
 
 The workflow needs a repository secret named `CF_API_KEY` holding a CurseForge API token (CurseForge, Account, API Tokens). After each release, check that the CurseForge file lists game version 1.60.1.
 
@@ -213,3 +214,7 @@ The workflow needs a repository secret named `CF_API_KEY` holding a CurseForge A
 - Support for third-party raid frame addons
 - An API for nameplate addons: `NameForge:GetDisplay(unit)` already returns `{ primary, secondary }`
 - Import and export of overrides
+
+## License
+
+NameForge is released under the MIT License. See `LICENSE`.

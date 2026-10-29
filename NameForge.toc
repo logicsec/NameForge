@@ -4,6 +4,7 @@
 ## Author: logicsec
 ## Version: 0.1.0
 ## SavedVariables: NameForgeDB
+## X-Curse-Project-ID: 1772450
 ## IconTexture: Interface\Icons\INV_Misc_Note_01
 ## AddonCompartmentFunc: NameForge_OnAddonCompartmentClick
 ## AddonCompartmentFuncOnEnter: NameForge_OnAddonCompartmentEnter
