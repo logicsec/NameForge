@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Add an optional EllesmereUI Unit Frames integration for the primary format and character overrides.
+
 - Apply the primary name format and character overrides to player names in Blizzard chat.
 
 ## 0.1.0 (unreleased)

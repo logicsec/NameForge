@@ -214,6 +214,27 @@ check("unit frame hook installed", type(hooks.UnitFrame_Update), "function")
 check("tooltip post call registered", #tooltipPostCalls, 1)
 check("menu modified", type(menuMods.MENU_UNIT_PLAYER), "function")
 
+-- The optional EllesmereUI module can load after NameForge.
+local euiName
+local euiFrames = {
+	ResolveUnitNickname = function(unit) return GetUnitName(unit) end,
+}
+euiFrames.RefreshAllUnitNames = function()
+	euiName = euiFrames.ResolveUnitNickname("target")
+end
+EllesmereUI = { _ModuleNS = { EllesmereUIUnitFrames = euiFrames } }
+fire("ADDON_LOADED", "EllesmereUIUnitFrames")
+check("EllesmereUI integration defaults off", euiFrames.ResolveUnitNickname("target"), "Ad")
+Core.db.global.surfaces.ellesmereUI = true
+Core:Invalidate()
+runTimers()
+check("EllesmereUI name refreshed on enable", euiName, "Ad Astra - Solstice")
+check("EllesmereUI keeps NPC name", euiFrames.ResolveUnitNickname("nameplate9"), "Hogger")
+Core.db.global.surfaces.ellesmereUI = false
+Core:Invalidate()
+runTimers()
+check("EllesmereUI restores its name on disable", euiName, "Ad")
+
 -- Default format on nameplates
 for _, p in ipairs(plates) do CompactUnitFrame_UpdateName(p.UnitFrame) end
 check("guildless default", plates[1].UnitFrame.name:GetText(), "Orin Vale")
@@ -236,6 +257,10 @@ runTimers()
 d = Core:GetDisplay("target")
 check("override primary", d and d.primary, "Astra - Tank")
 check("override secondary off", d and d.secondary, nil)
+
+Core.db.global.surfaces.ellesmereUI = true
+check("EllesmereUI uses character override", euiFrames.ResolveUnitNickname("target"), d.primary)
+Core.db.global.surfaces.ellesmereUI = false
 
 -- Forever passes the original chat arguments after the decorated sender name.
 local function chat(event, decorated, sender, guid, discord)

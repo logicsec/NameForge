@@ -160,14 +160,14 @@ local SURFACES = {
 	{ key = "chat", label = "Chat sender names", desc = "Primary name in Blizzard chat" },
 }
 
-local function buildDisplayPage(parent)
+local function buildSurfacePage(parent, title, surfaces)
 	local page = CreateFrame("Frame", nil, parent)
 	page:SetAllPoints()
-	local group = W.Group(page, "Where Names Change", CONTENT_INNER_W)
+	local group = W.Group(page, title, CONTENT_INNER_W)
 	group:SetPoint("TOPLEFT", 0, 0)
 
 	local checks = {}
-	for _, s in ipairs(SURFACES) do
+	for _, s in ipairs(surfaces) do
 		local cb = W.Checkbox(group.box, function(checked)
 			Core.db.global.surfaces[s.key] = checked and true or false
 			Core:Invalidate()
@@ -406,7 +406,14 @@ end
 
 local CATEGORIES = {
 	{ id = "names", label = "Names", title = "Names", build = buildNamesPage },
-	{ id = "display", label = "Display", title = "Display", build = buildDisplayPage },
+	{ id = "display", label = "Display", title = "Display", build = function(parent)
+		return buildSurfacePage(parent, "Where Names Change", SURFACES)
+	end },
+	{ id = "integrations", label = "Integrations", title = "Integrations", build = function(parent)
+		return buildSurfacePage(parent, "Addon Integrations", {
+			{ key = "ellesmereUI", label = "EllesmereUI Unit Frames", desc = "Use your primary name format and character overrides" },
+		})
+	end },
 	{ id = "overrides", label = "Overrides", title = "Overrides", build = buildOverridesPage },
 	{ id = "about", label = "About & Help", title = "About & Help", build = buildAboutPage },
 }
