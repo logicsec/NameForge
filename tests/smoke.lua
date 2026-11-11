@@ -125,6 +125,9 @@ function hooksecurefunc(name, fn)
 	hooks[name] = prev and function(...) prev(...); fn(...) end or fn
 end
 
+local chatFilter
+ChatFrameUtil = { AddSenderNameFilter = function(callback) chatFilter = callback end }
+
 local tooltipPostCalls = {}
 TooltipDataProcessor = { AddTooltipPostCall = function(t, fn) tooltipPostCalls[#tooltipPostCalls + 1] = fn end }
 
@@ -233,6 +236,28 @@ runTimers()
 d = Core:GetDisplay("target")
 check("override primary", d and d.primary, "Astra - Tank")
 check("override secondary off", d and d.secondary, nil)
+
+-- Forever passes the original chat arguments after the decorated sender name.
+local function chat(event, decorated, sender, guid, discord)
+	return chatFilter(event, decorated, "message", sender,
+		nil, nil, nil, nil, nil, nil, nil, nil, nil, guid, nil, nil, discord)
+end
+check("chat override preserves Blizzard color",
+	chat("CHAT_MSG_GUILD", "|cff3fc7ebAd Astra|r", "Ad Astra", "Player-1-BBB"),
+	"|cff3fc7ebAstra - Tank|r")
+check("chat primary format",
+	chat("CHAT_MSG_PARTY", "Orin Vale", "Orin Vale", "Player-1-CCC"),
+	"Orin Vale -")
+check("Discord sender untouched",
+	chat("CHAT_MSG_GUILD", "Ad Astra", "Ad Astra", "Player-1-BBB", { userID = 123 }), nil)
+check("restricted sender untouched",
+	chat("CHAT_MSG_GUILD", Secret("Ad Astra"), "Ad Astra", "Player-1-BBB"), nil)
+check("system message untouched",
+	chat("CHAT_MSG_SYSTEM", "Ad Astra", "Ad Astra", "Player-1-BBB"), nil)
+Core.db.global.surfaces.chat = false
+check("chat disabled", chat("CHAT_MSG_GUILD", "Ad Astra", "Ad Astra", "Player-1-BBB"), nil)
+Core.db.global.surfaces.chat = true
+
 
 -- Name-keyed override upgrades to GUID
 Core:SetOverride(nil, { first = "Orin", last = "Vale", primary = "Ret - Tank" })

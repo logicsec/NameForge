@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Apply the primary name format and character overrides to player names in Blizzard chat.
+
 ## 0.1.0 (unreleased)
 
 First version, written ahead of the WoW: Forever launch on November 4, 2026.

@@ -19,7 +19,7 @@ Everything you set is personal and account-wide. Nobody else sees your names.
 - **Per-character overrides** from the Inspect window, the right-click menu, or `/nf target`. Give someone a nickname, a note, or a completely custom label.
 - **Class colors** for the primary name (optional).
 - **Live preview** while you type, and validation that blocks broken formats.
-- **Surfaces in v1:** Blizzard nameplates, the unit tooltip, the target and focus frames, and Blizzard's raid and party frames.
+- **Surfaces:** Blizzard nameplates, the unit tooltip, target and focus frames, raid and party frames, and in-game chat.
 - **Players only.** NPCs, pets and creatures always keep their normal names.
 - Minimap button and addon compartment entry. No external libraries.
 
@@ -126,7 +126,7 @@ NameForge was checked against the Forever UI source (the `forever` branch of the
 - **Tooltip:** `TooltipDataProcessor.AddTooltipPostCall(Enum.TooltipDataType.Unit, ...)` replaces line 1 and adds the secondary name directly under it.
 - **Target and focus:** post-hooks `UnitFrame_Update` for `TargetFrame` and `FocusFrame` only.
 - **Raid and party frames:** Blizzard's raid-style frames set their name in the same `CompactUnitFrame_UpdateName` the nameplates use, and Forever's classic party frames go through `UnitFrame_Update`. NameForge post-hooks both for `raidN`, `partyN` and `player` units and sets the primary name only (these frames are too small for two lines). `FontString:SetText` is not a protected call, so names stay correct in combat.
-- **Players only:** every surface goes through one check, `UnitIsPlayer(unit)`. Anything else is left exactly as Blizzard draws it.
+- **Chat:** applies the primary format and character overrides to new player messages in Blizzard chat. The sender link keeps its original whisper and right-click actions. Enable or disable it under **Display → Chat sender names**. Tokens that require live character data use the saved override snapshot when available.
 - **Inspect:** the button is added when `Blizzard_InspectUI` loads, next to `InspectFrame.CloseButton`. Right-click entries use `Menu.ModifyMenu` on the `MENU_UNIT_*` tags.
 - **Addon restrictions:** Forever uses Midnight's addon rules, including secret values. NameForge checks every value with `issecretvalue`. It never touches forbidden nameplates.
 
@@ -151,7 +151,6 @@ Showing a hidden name marks that font string as holding secret text, which is ho
 
 - **Forbidden nameplates:** Blizzard can mark some nameplates as forbidden, which means no addon can read or change them. On retail this applies to friendly nameplates inside dungeons and raids. The Forever client has the same mechanism, but which plates it applies to is not confirmed yet (see the launch checklist). NameForge skips only plates that are actually forbidden, so if Forever does not lock friendly plates in instances, your raid members' nameplates will show your names too. Raid frames, tooltips and the target frame are not affected by this either way.
 - **Third-party nameplate and raid frame addons** (Plater, Platynator, Cell, VuhDo, Grid2 and others) draw their own names and are not changed yet.
-- **Chat sender names** are planned for v2.
 
 ## Launch day checklist
 
@@ -210,7 +209,6 @@ The workflow needs a repository secret named `CF_API_KEY` holding a CurseForge A
 
 ## Roadmap
 
-- Chat sender names
 - Support for third-party raid frame addons
 - An API for nameplate addons: `NameForge:GetDisplay(unit)` already returns `{ primary, secondary }`
 - Import and export of overrides

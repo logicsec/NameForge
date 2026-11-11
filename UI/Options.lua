@@ -157,6 +157,7 @@ local SURFACES = {
 	{ key = "tooltip", label = "Unit tooltip", desc = "Replaces the first line and adds the secondary name under it" },
 	{ key = "target", label = "Target and focus frames", desc = "Primary name only" },
 	{ key = "group", label = "Raid and party frames", desc = "Blizzard raid-style and party frames, primary name only" },
+	{ key = "chat", label = "Chat sender names", desc = "Primary name in Blizzard chat" },
 }
 
 local function buildDisplayPage(parent)
@@ -174,11 +175,6 @@ local function buildDisplayPage(parent)
 		checks[s.key] = cb
 		group:AddRow(s.label, s.desc, cb)
 	end
-	local chat = W.Checkbox(group.box)
-	chat:Disable()
-	chat:SetAlpha(0.4)
-	local chatRow = group:AddRow("Chat sender names", "Planned for a later version", chat)
-	Theme.TextColor(chatRow.label, C.muted)
 
 	function page:Refresh()
 		for key, cb in pairs(checks) do cb:SetChecked(Core.db.global.surfaces[key]) end
